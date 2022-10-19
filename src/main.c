@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
@@ -34,8 +35,93 @@ static const char *now_str(void)
 	return buf;
 }
 
+// bin			| description
+// 0b00000110 	| 1
+// 0b01011011 	| 2
+// 0b01001111	| 3
+// 0b01100110 	| 4
+// 0b01101101 	| 5
+// 0b01111101 	| 6
+// 0b00000111 	| 7
+// 0b01111111 	| 8
+// 0b01101111 	| 9
+// 0b00111111 	| 0
+// 0b00000000 	| space
+// 0b01101111 	| H
+// 0b00111001	| C
+// 0b00110001 	| t
+// 0b01000000 	| -
+// 0b10000000	| .
+
+int convert_to_display_bin(char character)
+{
+	switch (character) {
+	case '1':
+		return 0b00000110;
+	case '2':
+		return 0b01011011;
+	case '3':
+		return 0b01001111;
+	case '4':
+		return 0b01100110;
+	case '5':
+		return 0b01101101;
+	case '6':
+		return 0b01111101;
+	case '7':
+		return 0b00000111;
+	case '8':
+		return 0b01111111;
+	case '9':
+		return 0b01101111;
+	case '0':
+		return 0b00111111;
+	case ' ':
+		return 0b00000000;
+	case 'H':
+		return 0b01101111;
+	case 'C':
+		return 0b00111001;
+	case 't':
+		return 0b00110001;
+	case '-':
+		return 0b01000000;
+	case '.':
+		return 0b10000000;
+	default:
+		return 0b00111111;
+	}
+}
+
+void clear_display(const struct device *dev)
+{
+	print_text_to_display(dev, "      ");
+}
+
+void print_text_to_display(const struct device *dev, char source[])
+{
+	gpio_pin_set(dev, REFRESH, 0);
+	for (int i = 0; i < strlen(source); i++) {
+		print_char_to_display(dev, convert_to_display_bin(source[i]));
+	}
+	gpio_pin_set(dev, REFRESH, 1);
+}
+
+void print_char_to_display(const struct device *dev, int char_code)
+{
+	int mask = 0b00000001;
+	for (int i = 7; i >= 0; i--) {
+		int val = (char_code >> i) & mask;
+		gpio_pin_set(dev, STORE, 0);
+		gpio_pin_set(dev, DATA, val);
+		gpio_pin_set(dev, STORE, 1);
+	}
+}
+
 void main(void)
 {
+	bool temp_mode = true;
+
 	const struct device *const dht22 = DEVICE_DT_GET_ONE(aosong_dht);
 	const struct device *const dev = led.port;
 
@@ -48,88 +134,7 @@ void main(void)
 	gpio_pin_configure(dev, STORE, GPIO_OUTPUT_INACTIVE);
 	gpio_pin_configure(dev, REFRESH, GPIO_OUTPUT_INACTIVE);
 
-	// reset
-	gpio_pin_set(dev, REFRESH, 0);
-	gpio_pin_set(dev, DATA, 0);
-	gpio_pin_set(dev, STORE, 0);
-
-	for (int i = 0; i < 8; i++) {
-		// 0
-		gpio_pin_set(dev, STORE, 0);
-		gpio_pin_set(dev, DATA, 0);
-		gpio_pin_set(dev, STORE, 1);
-	}
-	gpio_pin_set(dev, REFRESH, 1);
-
-	// reset
-	gpio_pin_set(dev, REFRESH, 0);
-	gpio_pin_set(dev, DATA, 0);
-	gpio_pin_set(dev, STORE, 0);
-
-	k_msleep(SLEEP_TIME_MS);
-	k_msleep(SLEEP_TIME_MS);
-
 	while (true) {
-
-		// bin			| hex 	| description
-		// 0000 0110 	| 0x6 	| 1
-		// 0101 1011 	| 0x5b 	| 2
-		// 0100 1111	| 0x4f 	| 3
-		// 0110 0110 	| 0x66	| 4
-		// 0110 1101 	| 0x6d	| 5
-		// 0111 1101 	| 0x7d	| 6
-		// 0000 0111 	| 0x7	| 7
-		// 0111 1111 	| 0x7f	| 8
-		// 0110 1111 	| 0x6f	| 9
-		// 0111 0110 	| 0x6f	| 9
-		// 0000 0000 	| 0x0 	| space
-		// 0110 1111 	| 0x76	| H
-		// 0011 0001 	| 0x31	| t
-		// 0100 0000 	| 0x40	| -
-		// 1000 0000	| 0x80	| .
-
-		// reset
-		gpio_pin_set(dev, REFRESH, 0);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, DATA, 0);
-		gpio_pin_set(dev, STORE, 1);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, DATA, 1);
-		gpio_pin_set(dev, STORE, 1);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, DATA, 1);
-		gpio_pin_set(dev, STORE, 1);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, DATA, 0);
-		gpio_pin_set(dev, STORE, 1);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, DATA, 1);
-		gpio_pin_set(dev, STORE, 1);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, DATA, 1);
-		gpio_pin_set(dev, STORE, 1);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, DATA, 1);
-		gpio_pin_set(dev, STORE, 1);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, DATA, 1);
-		gpio_pin_set(dev, STORE, 1);
-		gpio_pin_set(dev, STORE, 0);
-
-		gpio_pin_set(dev, REFRESH, 1);
-
-		// reset
-		gpio_pin_set(dev, REFRESH, 0);
-		gpio_pin_set(dev, STORE, 0);
-
 		int rc = sensor_sample_fetch(dht22);
 
 		if (rc != 0) {
@@ -149,9 +154,18 @@ void main(void)
 			break;
 		}
 
+		char text[7];
+		if (temp_mode) {
+			sprintf(text, "%.1f C", sensor_value_to_double(&temperature));
+		} else {
+			sprintf(text, "%.1f H", sensor_value_to_double(&humidity));
+		}
+
+		print_text_to_display(dev, text);
+
 		printf("[%s]: %.1f Cel ; %.1f %%RH\n", now_str(),
 		       sensor_value_to_double(&temperature), sensor_value_to_double(&humidity));
-		// k_sleep(K_SECONDS(2));
+
 		k_msleep(SLEEP_TIME_MS);
 	}
 }
