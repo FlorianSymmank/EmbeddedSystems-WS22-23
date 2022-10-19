@@ -13,7 +13,7 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 #define STORE	1
 #define REFRESH 4
 
-#define SLEEP_TIME_MS 1000
+#define SLEEP_TIME_MS 500
 
 static const char *now_str(void)
 {
@@ -101,8 +101,16 @@ void clear_display(const struct device *dev)
 void print_text_to_display(const struct device *dev, char source[])
 {
 	gpio_pin_set(dev, REFRESH, 0);
-	for (int i = 0; i < strlen(source); i++) {
-		print_char_to_display(dev, convert_to_display_bin(source[i]));
+	int len = strlen(source);
+	for (int i = 0; i < len; i++) {
+
+		int bin = convert_to_display_bin(source[i]);
+		if (i + 1 < len && source[i + 1] == '.') {
+			bin |= convert_to_display_bin('.');
+			i++;
+		}
+
+		print_char_to_display(dev, bin);
 	}
 	gpio_pin_set(dev, REFRESH, 1);
 }
