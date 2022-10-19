@@ -118,6 +118,22 @@ void print_char_to_display(const struct device *dev, int char_code)
 	}
 }
 
+void start_up_lighting(const struct device *dev)
+{
+	clear_display(dev);
+	k_msleep(SLEEP_TIME_MS);
+	print_text_to_display(dev, "-8-8-8-8-");
+	k_msleep(SLEEP_TIME_MS);
+	print_text_to_display(dev, "8-8-8-8-8");
+	k_msleep(SLEEP_TIME_MS);
+	print_text_to_display(dev, "-8-8-8-8-");
+	k_msleep(SLEEP_TIME_MS);
+	print_text_to_display(dev, "8-8-8-8-8");
+	k_msleep(SLEEP_TIME_MS);
+	clear_display(dev);
+	k_msleep(SLEEP_TIME_MS);
+}
+
 void main(void)
 {
 	bool temp_mode = true;
@@ -133,6 +149,8 @@ void main(void)
 	gpio_pin_configure(dev, DATA, GPIO_OUTPUT_INACTIVE);
 	gpio_pin_configure(dev, STORE, GPIO_OUTPUT_INACTIVE);
 	gpio_pin_configure(dev, REFRESH, GPIO_OUTPUT_INACTIVE);
+
+	start_up_lighting(dev);
 
 	while (true) {
 		int rc = sensor_sample_fetch(dht22);
@@ -161,6 +179,7 @@ void main(void)
 			sprintf(text, "%.1f H", sensor_value_to_double(&humidity));
 		}
 
+		clear_display(dev); // push every bit out
 		print_text_to_display(dev, text);
 
 		printf("[%s]: %.1f Cel ; %.1f %%RH\n", now_str(),
