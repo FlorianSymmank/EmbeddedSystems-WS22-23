@@ -15,6 +15,13 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 #define SLEEP_TIME_MS 500
 
+// delcare functions
+int convert_to_display_bin(char character);
+void clear_display(const struct device *dev);
+void print_text_to_display(const struct device *dev, char source[]);
+void print_char_to_display(const struct device *dev, int char_code);
+void start_up_lighting(const struct device *dev);
+
 static const char *now_str(void)
 {
 	static char buf[16]; /* ...HH:MM:SS.MMM */
@@ -124,6 +131,9 @@ void print_char_to_display(const struct device *dev, int char_code)
 		gpio_pin_set(dev, DATA, val);
 		gpio_pin_set(dev, STORE, 1);
 	}
+	gpio_pin_set(dev, REFRESH, 0);
+	gpio_pin_set(dev, REFRESH, 1);
+	k_msleep(SLEEP_TIME_MS / 2);
 }
 
 void start_up_lighting(const struct device *dev)
