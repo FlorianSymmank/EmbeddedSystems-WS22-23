@@ -131,9 +131,6 @@ void print_char_to_display(const struct device *dev, int char_code)
 		gpio_pin_set(dev, DATA, val);
 		gpio_pin_set(dev, STORE, 1);
 	}
-	gpio_pin_set(dev, REFRESH, 0);
-	gpio_pin_set(dev, REFRESH, 1);
-	k_msleep(SLEEP_TIME_MS / 2);
 }
 
 void start_up_lighting(const struct device *dev)
