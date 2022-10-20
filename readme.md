@@ -16,6 +16,8 @@ https://pdf1.alldatasheet.com/datasheet-pdf/view/797421/TI1/SN74HC595N.html
 
 7-seg-display  
 https://pdf1.alldatasheet.com/datasheet-pdf/view/1134416/ETC2/5611AH.html  
+https://zxcongducxz.000webhostapp.com/arduino/SevenSegmentLEDDisplay.html  
+
 GND 3 und 8 (eine Verbindung reicht)
 
 Verbindungen 8-Bit shift register -> 7-seg-display  
