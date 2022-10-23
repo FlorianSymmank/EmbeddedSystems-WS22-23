@@ -6,14 +6,30 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
-#define LED0_NODE DT_ALIAS(led0)
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
-
 #define DATA	0
 #define STORE	1
 #define REFRESH 4
 
 #define SLEEP_TIME_MS 500
+
+#define LED0_NODE DT_ALIAS(led0)
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+
+#define SW0_NODE DT_ALIAS(sw0)
+#if !DT_NODE_HAS_STATUS(SW0_NODE, okay)
+#error "Unsupported board: sw0 devicetree alias is not defined"
+#endif
+
+static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios, {0});
+static struct gpio_callback button_cb_data;
+
+enum Information_Displayed {
+	TEMP = 0,
+	HUMIDITY = 1,
+	UPTIME = 2,
+};
+
+static enum Information_Displayed info = TEMP;
 
 // delcare functions
 int convert_to_display_bin(char character);
@@ -21,6 +37,9 @@ void clear_display(const struct device *dev);
 void print_text_to_display(const struct device *dev, char source[]);
 void print_char_to_display(const struct device *dev, int char_code);
 void start_up_lighting(const struct device *dev);
+void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
+bool configure_gpio_pins(const struct device *dev);
+bool configure_button();
 
 static const char *now_str(void)
 {
@@ -42,6 +61,28 @@ static const char *now_str(void)
 	return buf;
 }
 
+static const char *uptime_str(void)
+{
+	static char buf[10]; /* HH MM */
+	uint32_t now = k_uptime_get_32();
+	unsigned int min;
+	unsigned int h;
+
+	now /= MSEC_PER_SEC;
+	now /= 60U;
+	min = now % 60U;
+	now /= 60U;
+	h = now;
+
+	snprintf(buf, sizeof(buf), "%02u %02u", h, min);
+	return buf;
+}
+
+void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+{
+	info = (info + 1) % 3;
+}
+
 // bin			| description
 // 0b00000110 	| 1
 // 0b01011011 	| 2
@@ -59,6 +100,7 @@ static const char *now_str(void)
 // 0b00110001 	| t
 // 0b01000000 	| -
 // 0b10000000	| .
+// 0b10110110	| ||. as default
 
 int convert_to_display_bin(char character)
 {
@@ -86,7 +128,7 @@ int convert_to_display_bin(char character)
 	case ' ':
 		return 0b00000000;
 	case 'H':
-		return 0b01101111;
+		return 0b1110110;
 	case 'C':
 		return 0b00111001;
 	case 't':
@@ -96,7 +138,7 @@ int convert_to_display_bin(char character)
 	case '.':
 		return 0b10000000;
 	default:
-		return 0b00111111;
+		return 0b10110110;
 	}
 }
 
@@ -137,21 +179,52 @@ void start_up_lighting(const struct device *dev)
 {
 	clear_display(dev);
 	k_msleep(SLEEP_TIME_MS);
-	print_text_to_display(dev, "-8-8-8-8-");
+	print_text_to_display(dev, "-8.-8.-8.-8.-");
 	k_msleep(SLEEP_TIME_MS);
-	print_text_to_display(dev, "8-8-8-8-8");
+	print_text_to_display(dev, "8.-8.-8.-8.-8.");
 	k_msleep(SLEEP_TIME_MS);
-	print_text_to_display(dev, "-8-8-8-8-");
+	print_text_to_display(dev, "-8.-8.-8.-8.-");
 	k_msleep(SLEEP_TIME_MS);
-	print_text_to_display(dev, "8-8-8-8-8");
+	print_text_to_display(dev, "8.-8.-8.-8.-8.");
 	k_msleep(SLEEP_TIME_MS);
 	clear_display(dev);
 	k_msleep(SLEEP_TIME_MS);
 }
 
+bool configure_button()
+{
+	int ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
+	if (ret != 0) {
+		printk("Error %d: failed to configure %s pin %d\n", ret, button.port->name,
+		       button.pin);
+		return false;
+	}
+
+	ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
+	if (ret != 0) {
+		printk("Error %d: failed to configure interrupt on %s pin %d\n", ret,
+		       button.port->name, button.pin);
+		return false;
+	}
+
+	gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin));
+	gpio_add_callback(button.port, &button_cb_data);
+	printk("Set up button at %s pin %d\n", button.port->name, button.pin);
+	return true;
+}
+
+bool configure_gpio_pins(const struct device *dev)
+{
+	gpio_pin_configure(dev, DATA, GPIO_OUTPUT_INACTIVE);
+	gpio_pin_configure(dev, STORE, GPIO_OUTPUT_INACTIVE);
+	gpio_pin_configure(dev, REFRESH, GPIO_OUTPUT_INACTIVE);
+
+	return true;
+}
+
 void main(void)
 {
-	bool temp_mode = true;
+	printf("[%s] Device started\n", now_str());
 
 	const struct device *const dht22 = DEVICE_DT_GET_ONE(aosong_dht);
 	const struct device *const dev = led.port;
@@ -161,13 +234,12 @@ void main(void)
 		return;
 	}
 
-	gpio_pin_configure(dev, DATA, GPIO_OUTPUT_INACTIVE);
-	gpio_pin_configure(dev, STORE, GPIO_OUTPUT_INACTIVE);
-	gpio_pin_configure(dev, REFRESH, GPIO_OUTPUT_INACTIVE);
-
+	configure_gpio_pins(dev);
+	configure_button();
 	start_up_lighting(dev);
 
 	while (true) {
+
 		int rc = sensor_sample_fetch(dht22);
 
 		if (rc != 0) {
@@ -187,14 +259,16 @@ void main(void)
 			break;
 		}
 
-		char text[7];
-		if (temp_mode) {
+		char text[10];
+		if (info == TEMP) {
 			sprintf(text, "%.1f C", sensor_value_to_double(&temperature));
-		} else {
+		} else if (info == HUMIDITY) {
 			sprintf(text, "%.1f H", sensor_value_to_double(&humidity));
+		} else {
+			sprintf(text, "%s", uptime_str());
 		}
 
-		clear_display(dev); // push every bit out
+		clear_display(dev);
 		print_text_to_display(dev, text);
 
 		printf("[%s]: %.1f Cel ; %.1f %%RH\n", now_str(),
