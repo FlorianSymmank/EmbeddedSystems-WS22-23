@@ -1,3 +1,9 @@
+## Embedded Systemes Semsterpojekt WS22/23
+
+Daten eines DHT22 Temperatur und Feuchtigkeitsensors werden auf mehreren 7 Segment Displays ausgegebe.  
+Als OS verwende ich Zephyr.
+
+___
 Data Pin = Port A Pin 0  
 Store Pin =	Port A Pin 1  
 Refresh Pin = Port A Pin 4  
