@@ -1,6 +1,6 @@
-## Embedded Systemes Semsterpojekt WS22/23
+## Embedded Systemes Semsterprojekt WS22/23
 
-Daten eines DHT22 Temperatur und Feuchtigkeitsensors werden auf mehreren 7 Segment Displays ausgegebe.  
+Daten eines DHT22 Temperatur und Feuchtigkeitsensors werden auf mehreren 7 Segment Displays ausgegeben.  
 Als OS verwende ich Zephyr.
 
 ___
